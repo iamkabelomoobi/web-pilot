@@ -1,0 +1,52 @@
+services:
+  db:
+    restart: unless-stopped
+    image: postgres:15.4-alpine3.18
+    ports:
+      - "5437:5432"
+    volumes:
+      - webPilotDbStore:/var/lib/postgresql/data
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-web_pilot}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-web_pilot}
+      POSTGRES_DB: ${POSTGRES_DB:-web_pilot_dev}
+      POSTGRES_HOST_AUTH_METHOD: md5
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_USER:-web_pilot} -d ${POSTGRES_DB:-web_pilot_dev}",
+        ]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+    networks:
+      - backend-network
+  mail:
+    restart: unless-stopped
+    image: maildev/maildev:2.1.0
+    ports:
+      - "1025:1025" # SMTP
+      - "8025:8025" # Web UI
+    environment:
+      - MAILDEV_OUTGOING_DISABLED=true
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:8025 || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+    networks:
+      - backend-network
+    labels:
+      - "description=Development Mail Server"
+
+volumes:
+  webPilotDbStore:
+    name: webPilotDbStore
+
+networks:
+  backend-network:
+    driver: bridge
+    name: backend-network
